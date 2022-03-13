@@ -1,4 +1,4 @@
-
+import 'package:fab_circular_menu/fab_circular_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -31,6 +31,54 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  InterstitialAd? interstitialAd;
+  int interstitialAttempts = 0;
+  int maxAttempts = 3;
+  RewardedAd? rewardedAd;
+  int rewardedAdAttempts = 0;
+  static const AdRequest request = AdRequest();
+
+  void createInterstialAd() {
+    InterstitialAd.load(
+        adUnitId: InterstitialAd.testAdUnitId,
+        request: request,
+        adLoadCallback: InterstitialAdLoadCallback(onAdLoaded: (ad) {
+          interstitialAd = ad;
+          interstitialAttempts = 0;
+        }, onAdFailedToLoad: (error) {
+          interstitialAttempts++;
+          interstitialAd = null;
+          print('falied to load ${error.message}');
+
+          if (interstitialAttempts <= maxAttempts) {
+            createInterstialAd();
+          }
+        }));
+  }
+
+  void showInterstitialAd() {
+    if (interstitialAd == null) {
+      print('trying to show before loading');
+      return;
+    }
+
+    interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdShowedFullScreenContent: (ad) => print('ad showed $ad'),
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          createInterstialAd();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          ad.dispose();
+          print('failed to show the ad $ad');
+
+          createInterstialAd();
+        });
+
+    interstitialAd!.show();
+    interstitialAd = null;
+  }
+
   final BannerAd myBanner = BannerAd(
     adUnitId: "ca-app-pub-3940256099942544/6300978111",
     size: AdSize.banner,
@@ -41,6 +89,13 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     myBanner.load();
+    createInterstialAd();
+  }
+
+  @override
+  void dispose() {
+    interstitialAd?.dispose();
+    super.dispose();
   }
 
   @override
@@ -61,8 +116,13 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 50,
               width: 320,
               child: AdWidget(ad: myBanner),
-            ))
+            )),
       ]),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showInterstitialAd();
+        },
+      ),
     );
   }
 }
